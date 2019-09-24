@@ -3,7 +3,6 @@
 #include <cctype>
 using namespace std;
 
-char returnIfIsAlpha(char inChar);
 TokenType setTokenType(char inChar, char nextChar);
 string charStackToString(stack <char> inCharStack);
 
@@ -14,19 +13,16 @@ Scanner::Scanner(string fileName)
 void Scanner::tokenize()
 {
     int lineNum = 1;
-    // int badCreateFlag = 0;
-    // int tempTrackerDebug = 0; 
+    int lineNumTemp = 0;
     ifstream inFile;
     ofstream outFile;
     char currentChar;
+    char tempChar;
     stack <char> currentTokenStack;
     stack <char> emptyStack;
     stack <Token> allTokensInFile;
     TokenType tokenType;
     
-    // currentChar = inFile.peek();
-    // char test = currentChar;
-    // currentChar = test;
     inFile.open(this->fileName);
     
     if(!inFile)
@@ -35,7 +31,7 @@ void Scanner::tokenize()
         return;
     }
     
-    while (inFile.peek() != EOF) //you gotta get all the tokens in this while statement
+    while (inFile.peek() != EOF) //While you have not yet reached the end of file, execute:
     {
         while(isspace(inFile.peek())) //Whenever the scanner encounters whitespace, iterate out until there is no more white space
         {
@@ -45,14 +41,12 @@ void Scanner::tokenize()
             }
             inFile.get();
         }
-        // badCreateFlag = 0; delete
+
         currentTokenStack = emptyStack; //Empty the stack to fill it with another token
         
         currentChar = inFile.get(); //get the next character
-    
-        
         tokenType = setTokenType(currentChar, inFile.peek());//set token types
-        //old comment : if current character is one of the single character tokens, create the token object and move to the next token in file. Otherwise, keep scanning
+        
         switch (tokenType)//compare token types
         {
             case COLON_DASH:
@@ -92,7 +86,7 @@ void Scanner::tokenize()
             {
                 
             }
-            case ADD: //All single character tokens fall through to this case:
+            case ADD: //All single character tokens fall through to the following ADD case:
             {
                 currentTokenStack.push(currentChar);
                 break;
@@ -103,17 +97,12 @@ void Scanner::tokenize()
             case QUERIES:
             case ID:
             {
-                while (isalnum(/*inFile.peek()*/currentChar))
+                while (isalnum(inFile.peek()))
                 {
-                    if (inFile.peek() == '\n')
-                        {
-                            lineNum += 1;
-                        }
                     currentTokenStack.push(currentChar);
                     currentChar = inFile.get();
                 }
-                // currentTokenStack.push(currentChar); testing this without these 2 lines
-                // currentChar = inFile.get();
+                currentTokenStack.push(currentChar);
                 if (charStackToString(currentTokenStack) == "Schemes")
                 {
                     tokenType = SCHEMES;
@@ -124,77 +113,93 @@ void Scanner::tokenize()
                 }
                 else if (charStackToString(currentTokenStack) == "Rules")
                 {
-                    tokenType = FACTS;
+                    tokenType = RULES;
                 }
                 else if (charStackToString(currentTokenStack) == "Queries")
                 {
                     tokenType = QUERIES;
                 }
-                // if (inFile.peek() == '\n')
-                // {
-                //     lineNum += 1;
-                // }
                 break;
             }
-            case STRING: // kinda works! but eats the next character every time
+            case STRING: // kinda works!
             {
-                
-                while (/*currentChar != '\'' && */inFile.peek() != '\'' && inFile.peek() != '\n' && inFile.peek() != EOF)
+                do
                 {
-                    // cout << currentChar;
+                    
                     currentTokenStack.push(currentChar);
                     currentChar = inFile.get();
-                }
-                if (inFile.peek() == '\n')
-                {
-                    lineNum += 1;
-                }
-                // currentTokenStack.push(currentChar);
-                // currentChar = inFile.get();
-                cout<< currentChar;
+                    if (currentChar == '\n')
+                    {
+                        lineNumTemp += 1;
+                    }
+                    
+                    if(inFile.peek() == '\'')
+                    {
+                        tempChar = inFile.get();
+                        
+                        if(inFile.peek() == '\'')
+                        {
+                            // cout << "do we even get here?";
+                            inFile.putback(tempChar);
+                            currentTokenStack.push(currentChar);
+                            currentChar = inFile.get();
+                            currentTokenStack.push(currentChar);
+                            currentChar = inFile.get();
+                            currentTokenStack.push(currentChar);
+                            currentChar = inFile.get();
+                            
+                        }
+                        else
+                        {
+                            inFile.putback(tempChar);
+                        }
+                        // cout << currentChar;
+                    }
+                } while (currentChar != '\'' /*&& currentChar != '\n'*/ && inFile.peek() != EOF/*inFile.peek() != '\'' && inFile.peek() != '\n' && inFile.peek() != EOF*/);
+                
+
                 currentTokenStack.push(currentChar);
-                currentChar = inFile.get();
+                
+
+                if (inFile.peek() == EOF)
+                {
+                    tokenType = setTokenType('&','a'); //set token type to UNDEFINED by passing random characters to setTokenType
+                }
                 break;
             }
             case COMMENT:
             {
                 if (inFile.peek() == '|') //If you get a | as your character, push it, and get the #
                 {
-                    // currentTokenStack.push(currentChar); //push the |
-                    // currentChar = inFile.get(); //get the #
-                    while (inFile.peek() != '#' && inFile.peek() != EOF)//Iterate until you find a | or EOF
+                    do
                         {
                             // cout << "|"; //IDK TBH
                             currentTokenStack.push(currentChar); //push the current character within the comment
                             currentChar = inFile.get(); //get the next character
                             if (currentChar == '\n')
                                 {
-                                    lineNum += 1;
+                                    lineNumTemp += 1;
                                 }
-                        }
+                        } while (currentChar != '#' && inFile.peek() != EOF);//Iterate until you find a | or EOF
+                        currentTokenStack.push(currentChar);
                 }
                 else //if its a line comment, this else executes
                 {
                     while (inFile.peek() != '\n' && inFile.peek() != EOF)
                     {
-                        // cout << "nLine";
                         currentTokenStack.push(currentChar);
                         currentChar = inFile.get();
                     }
+                    currentTokenStack.push(currentChar);
                 }
-                if (inFile.peek() == '\n')
-                {
-                    lineNum += 1;
-                }
+
                 
             }// end COMMENT case
                 
                 break;
-            // }
             
             case EndOf:
             {
-                
                 break;
             }
             default:
@@ -202,14 +207,16 @@ void Scanner::tokenize()
                 break;
             }
         }// end switch statement
-        // if (badCreateFlag == 1) //this shouldnt be necessary anymore
-        // {
-            Token currentToken = Token(tokenType, currentTokenStack, lineNum); //Create the token object from the data collected
-            allTokensInFile.push(currentToken); //push that token to the stack
-        // }
+        
+        Token currentToken = Token(tokenType, currentTokenStack, lineNum); //Create the token object from the data collected
+        allTokensInFile.push(currentToken); //push that token to the stack
+        
+        lineNum += lineNumTemp;
+        lineNumTemp = 0;
         
         
     } // end while !eof loop
+    
     
     inFile.close(); //Close the input file
     
@@ -243,21 +250,7 @@ void Scanner::tokenize()
     
 } //end of Tokenize
 
-char returnIfIsAlpha(char inChar)
-{
-    if (isalpha(inChar))
-    {
-        return inChar;
-    }
-    else
-    {
-        return '`'; //If the ` character is ever input, it will roast the code sort of I think maybe maybe not though because of the while loop.
-    }
-}
-/*char returnIfIsAlNum(char inChar) //might not need this
-{
-    return 'a';
-}*/
+
 TokenType setTokenType(char inChar, char nextChar)
 {
     TokenType tokenTypeToReturn;
@@ -325,65 +318,3 @@ string charStackToString(stack <char> inCharStack)
 
     return stringToken;
 }
-
-
-//old switch thing
-/*switch (currentChar) //you gotta create the full token in this switch statement
-        {
-            case ',': //if current character is one of the single character tokens, create the token object and move to the next token in file. Otherwise, keep scanning
-                if (currentChar == ',')
-                tokenType = COMMA;
-                
-            case '.':
-                if (currentChar == '.')
-                tokenType = PERIOD;
-                
-            case '?':
-                if (currentChar == '?')
-                tokenType = Q_MARK;
-                
-            case '(':
-                if (currentChar == '(')
-                tokenType = LEFT_PAREN;
-                
-            case ')':
-                if (currentChar == ')')
-                tokenType = RIGHT_PAREN;
-                
-            case ':':
-                if (currentChar == ':')
-                tokenType = COLON;
-                
-            case '*':
-                if (currentChar == '*')
-                tokenType = MULTIPLY;
-                
-            case '+':
-                if (currentChar == '+')
-                tokenType = ADD;
-                
-                badCreateFlag = 1;
-                currentTokenStack.push(currentChar);
-            break; 
-            
-            case returnIfIsAlpha(currentChar): //If the character is alphabetic, take this case which will complete the token.
-            {
-                badCreateFlag = 1;
-                while (isalnum(currentChar)) //While current character is an alphanumeric, push character to the token stack and iterate to the end of the token.
-                {
-                    currentTokenStack.push(currentChar);
-                    currentChar = inFile.get();
-                }
-                break;
-            }
-            
-            // break; //Break for multiple character tokens
-            default:
-                tempTrackerDebug += 1;
-                cout << "+" << tempTrackerDebug;
-                    // cout << "newlineees";
-                badCreateFlag = 1;
-                tokenType = UNDEFINED;
-                currentTokenStack.push(currentChar);
-            break;
-        }*/
